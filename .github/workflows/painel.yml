@@ -1,0 +1,50 @@
+name: Atualizar Painel de Editores
+
+# Quando rodar:
+on:
+  schedule:
+    - cron: "0 12 * * *"   # todo dia ~09:00 (horario de Brasilia / 12:00 UTC)
+  workflow_dispatch: {}     # botao "Run workflow" para rodar na hora
+
+# Permissoes necessarias para publicar no GitHub Pages:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Garante um deploy de cada vez:
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Baixar os arquivos do repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar o Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Gerar o painel (le o Notion e cria o HTML)
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: |
+          python3 gerar_painel.py
+          mkdir -p _site
+          cp painel_editores.html _site/index.html
+
+      - name: Empacotar para o Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Publicar no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
